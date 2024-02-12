@@ -1,1 +1,16 @@
-// impl
+syntax = "proto3";
+
+option go_package = "./";
+
+service AnimeRadioService {
+  rpc SendAnimeRadioInfo (stream YouTubeInfo) returns (SlackResponse);
+}
+
+message YouTubeInfo {
+  string title = 1;
+  string url = 2;
+}
+
+message SlackResponse {
+  string result = 1;
+}

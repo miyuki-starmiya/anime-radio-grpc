@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "anime-radio-grpc"
+version = "0.1.0"
+description = "anime-radio-grpc server in Python."
+authors = ["StarmiyaMiyuki <sousaku_0912@yahoo.co.jp>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+grpcio-tools = "^1.60.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
