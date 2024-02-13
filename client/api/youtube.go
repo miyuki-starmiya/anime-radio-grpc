@@ -11,26 +11,32 @@ import (
 	pb "github.com/miyuki-starmiya/anime-radio-grpc/gen"
 )
 
-type YouTubeClient struct{}
-
-func NewYouTubeClient() *YouTubeClient {
-	return &YouTubeClient{}
+type YouTubeClient struct {
+	Service *youtube.Service
 }
 
-func (yc *YouTubeClient) SearchByKeyword(keyword string) ([]pb.YouTubeInfo, error) {
-	// create YouTube API client
+func NewYouTubeClient() *YouTubeClient {
+	// init youtube client
 	apiKey := os.Getenv("YOUTUBE_API_KEY")
 	service, err := youtube.NewService(context.Background(), option.WithAPIKey(apiKey))
 	if err != nil {
 		log.Printf("Error: %v", err)
-		return nil, err
+		return nil
 	}
 
+	return &YouTubeClient{
+		Service: service,
+	}
+}
+
+func (yc *YouTubeClient) SearchByKeyword(keyword string) ([]pb.YouTubeInfo, error) {
 	// search by keyword
-	call := service.Search.List([]string{"id", "snippet"}).Q(keyword).MaxResults(10)
+	// yesterdayStr := time.Now().Add(time.Duration(-24) * time.Hour).Format("2006-01-02T15:04:05Z")
+	call := yc.Service.Search.List([]string{"id", "snippet"})
+	// call = call.Q(keyword).MaxResults(1).PublishedAfter(yesterdayStr)
+	call = call.Q(keyword).MaxResults(1)
 	response, err := call.Do()
 	if err != nil {
-		log.Printf("Error: %v", err)
 		return nil, err
 	}
 

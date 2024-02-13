@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"sync"
 
 	_ "github.com/joho/godotenv/autoload"
 	"google.golang.org/grpc"
@@ -34,8 +35,35 @@ func SendAnimeRadioInfo(client pb.AnimeRadioServiceClient, dataItems []pb.YouTub
 
 func main() {
 	yc := api.NewYouTubeClient()
-	dataItems, err := yc.SearchByKeyword(variable.KeywordList[0])
-	log.Printf("dataItems: %v", dataItems)
+
+	var wg sync.WaitGroup
+	resChan := make(chan pb.YouTubeInfo, len(variable.Keywords))
+
+	for _, keyword := range variable.Keywords {
+		wg.Add(1)
+		go func(kw string) {
+			defer wg.Done()
+			dataItems, err := yc.SearchByKeyword(kw)
+			if err != nil {
+				log.Printf("Error: %v", err)
+				return
+			}
+			if len(dataItems) > 0 {
+				resChan <- dataItems[0]
+			}
+		}(keyword)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resChan)
+	}()
+
+	var youTubeInfos []pb.YouTubeInfo
+	for data := range resChan {
+		youTubeInfos = append(youTubeInfos, data)
+	}
+	log.Printf("youTubeInfos: %v", youTubeInfos)
 
 	// create connection to gRPC server
 	conn, err := grpc.Dial(
@@ -48,5 +76,5 @@ func main() {
 	defer conn.Close()
 
 	client := pb.NewAnimeRadioServiceClient(conn)
-	SendAnimeRadioInfo(client, dataItems)
+	SendAnimeRadioInfo(client, youTubeInfos)
 }
