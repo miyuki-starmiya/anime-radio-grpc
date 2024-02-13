@@ -3,9 +3,14 @@ package main
 import (
 	"context"
 	"log"
+	"sync"
 
-	pb "github.com/miyuki-starmiya/anime-radio-grpc/gen"
+	_ "github.com/joho/godotenv/autoload"
 	"google.golang.org/grpc"
+
+	"github.com/miyuki-starmiya/anime-radio-grpc/api"
+	pb "github.com/miyuki-starmiya/anime-radio-grpc/gen"
+	"github.com/miyuki-starmiya/anime-radio-grpc/variable"
 )
 
 // client stream
@@ -29,6 +34,37 @@ func SendAnimeRadioInfo(client pb.AnimeRadioServiceClient, dataItems []pb.YouTub
 }
 
 func main() {
+	yc := api.NewYouTubeClient()
+
+	var wg sync.WaitGroup
+	resChan := make(chan pb.YouTubeInfo, len(variable.Keywords))
+
+	for _, keyword := range variable.Keywords {
+		wg.Add(1)
+		go func(kw string) {
+			defer wg.Done()
+			dataItems, err := yc.SearchByKeyword(kw)
+			if err != nil {
+				log.Printf("Error: %v", err)
+				return
+			}
+			if len(dataItems) > 0 {
+				resChan <- dataItems[0]
+			}
+		}(keyword)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resChan)
+	}()
+
+	var youTubeInfos []pb.YouTubeInfo
+	for data := range resChan {
+		youTubeInfos = append(youTubeInfos, data)
+	}
+	log.Printf("youTubeInfos: %v", youTubeInfos)
+
 	// create connection to gRPC server
 	conn, err := grpc.Dial(
 		"localhost:8080",
@@ -40,11 +76,5 @@ func main() {
 	defer conn.Close()
 
 	client := pb.NewAnimeRadioServiceClient(conn)
-
-	// mock data
-	dataItems := []pb.YouTubeInfo{
-		{Title: "title1", Url: "http://example.com/1"},
-		{Title: "title2", Url: "http://example.com/2"},
-	}
-	SendAnimeRadioInfo(client, dataItems)
+	SendAnimeRadioInfo(client, youTubeInfos)
 }
