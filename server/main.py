@@ -1,17 +1,31 @@
 import sys
 import os
-# Add the 'gen' directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'gen'))
 
 from concurrent import futures
 import grpc
 import gen.anime_radio_pb2
 import gen.anime_radio_pb2_grpc
+from api.slack import SlackClient
 
 class AnimeRadioService(gen.anime_radio_pb2_grpc.AnimeRadioServiceServicer):
     def SendAnimeRadioInfo(self, request_iterator, context):
-        for youtube_data in request_iterator:
-            print(f"title: {youtube_data.title}, URL: {youtube_data.url}")
+        MAX_WORKERS = 10
+        slack_client = SlackClient(os.environ["SLACK_WEBHOOK_URL"])
+
+        # Create a thread pool
+        with futures.ThreadPoolExecutor(MAX_WORKERS) as executor:
+            # Submit the tasks
+            future_to_url = {executor.submit(slack_client.send_message, f"title: {youtube_data.title}, URL: {youtube_data.url}"): youtube_data for youtube_data in request_iterator}
+
+            # Wait for the tasks to complete
+            for future in futures.as_completed(future_to_url):
+                youtube_data = future_to_url[future]
+                try:
+                    data = future.result()
+                except Exception as e:
+                    print(f"Failed to send message: {e}")
+
         return gen.anime_radio_pb2.SlackResponse(
             result="success"
         )
