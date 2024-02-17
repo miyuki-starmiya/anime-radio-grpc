@@ -37,9 +37,10 @@ func main() {
 	yc := api.NewYouTubeClient()
 
 	var wg sync.WaitGroup
-	resChan := make(chan pb.YouTubeInfo, len(variable.Keywords))
+	keywords := append(variable.AnimeRadios, variable.VoiceActressRadios...)
+	resChan := make(chan pb.YouTubeInfo, len(keywords))
 
-	for _, keyword := range variable.Keywords {
+	for _, keyword := range keywords {
 		wg.Add(1)
 		go func(kw string) {
 			defer wg.Done()
