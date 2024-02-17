@@ -2,35 +2,74 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 	"sync"
+	"time"
 
 	_ "github.com/joho/godotenv/autoload"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/miyuki-starmiya/anime-radio-grpc/api"
 	pb "github.com/miyuki-starmiya/anime-radio-grpc/gen"
 	"github.com/miyuki-starmiya/anime-radio-grpc/variable"
 )
 
-// client stream
-func SendAnimeRadioInfo(client pb.AnimeRadioServiceClient, dataItems []pb.YouTubeInfo) {
-	stream, err := client.SendAnimeRadioInfo(context.Background())
+const (
+	retrySecond    = 30
+	maxRetryMinute = 10
+)
+
+// Client stream
+func SendAnimeRadioInfo(client pb.AnimeRadioServiceClient, dataItems []pb.YouTubeInfo, ctx context.Context) {
+	stream, err := client.SendAnimeRadioInfo(ctx)
 	if err != nil {
 		log.Printf("Error: %v", err)
+		return
 	}
 
 	for _, data := range dataItems {
 		if err := stream.Send(&data); err != nil {
 			log.Printf("Failed to send data: %v", err)
+			return
 		}
 	}
 
 	response, err := stream.CloseAndRecv()
 	if err != nil {
 		log.Printf("Error: %v", err)
+		return
 	}
 	log.Printf("Response: %s", response.GetResult())
+}
+
+func connectWithRetry(serverAddress string) (*grpc.ClientConn, error) {
+	var conn *grpc.ClientConn
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(maxRetryMinute)*time.Minute)
+	defer cancel()
+
+	for {
+		conn, err = grpc.DialContext(ctx, serverAddress, grpc.WithInsecure())
+		if err != nil {
+			if status.Code(err) == codes.DeadlineExceeded {
+				// Deadline exceeded, stop retrying
+				log.Printf("Deadline %d minutes exceeded: %v", maxRetryMinute, err)
+				return nil, err
+			}
+			// Retry
+			log.Printf("Retry due to: %v", err)
+			time.Sleep(time.Duration(retrySecond) * time.Second)
+			continue
+		}
+		// Success
+		break
+	}
+	return conn, nil
 }
 
 func main() {
@@ -40,6 +79,7 @@ func main() {
 	keywords := append(variable.AnimeRadios, variable.VoiceActressRadios...)
 	resChan := make(chan pb.YouTubeInfo, len(keywords))
 
+	// Concurrently search YouTube data
 	for _, keyword := range keywords {
 		wg.Add(1)
 		go func(kw string) {
@@ -55,6 +95,7 @@ func main() {
 		}(keyword)
 	}
 
+	// Wait for all goroutines until done
 	go func() {
 		wg.Wait()
 		close(resChan)
@@ -66,16 +107,20 @@ func main() {
 	}
 	log.Printf("youTubeInfos: %v", youTubeInfos)
 
-	// create connection to gRPC server
-	conn, err := grpc.Dial(
-		"localhost:8080",
-		grpc.WithInsecure(),
-	)
+	// Create connection to gRPC server
+	host := os.Getenv("GRPC_SERVER_HOST")
+	port := os.Getenv("GRPC_SERVER_PORT")
+	serverAddress := fmt.Sprintf("%s:%s", host, port)
+	conn, err := connectWithRetry(serverAddress)
 	if err != nil {
 		log.Printf("Failed to connect: %v", err)
 	}
 	defer conn.Close()
 
+	// After 10 minutes, cancel the client request
 	client := pb.NewAnimeRadioServiceClient(conn)
-	SendAnimeRadioInfo(client, youTubeInfos)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(maxRetryMinute)*time.Minute)
+	defer cancel()
+
+	SendAnimeRadioInfo(client, youTubeInfos, ctx)
 }
