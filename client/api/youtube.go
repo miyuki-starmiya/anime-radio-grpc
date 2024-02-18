@@ -3,11 +3,11 @@ package api
 import (
 	"context"
 	"log"
-	"os"
 
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
+	"github.com/miyuki-starmiya/anime-radio-grpc/config"
 	pb "github.com/miyuki-starmiya/anime-radio-grpc/gen"
 )
 
@@ -17,7 +17,7 @@ type YouTubeClient struct {
 
 func NewYouTubeClient() *YouTubeClient {
 	// init youtube client
-	apiKey := os.Getenv("YOUTUBE_API_KEY")
+	apiKey := config.YOUTUBE_API_KEY
 	service, err := youtube.NewService(context.Background(), option.WithAPIKey(apiKey))
 	if err != nil {
 		log.Printf("Error: %v", err)
