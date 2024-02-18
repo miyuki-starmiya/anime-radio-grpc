@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
-	_ "github.com/joho/godotenv/autoload"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/miyuki-starmiya/anime-radio-grpc/api"
+	"github.com/miyuki-starmiya/anime-radio-grpc/config"
 	pb "github.com/miyuki-starmiya/anime-radio-grpc/gen"
 	"github.com/miyuki-starmiya/anime-radio-grpc/variable"
 )
@@ -108,9 +107,16 @@ func main() {
 	log.Printf("youTubeInfos: %v", youTubeInfos)
 
 	// Create connection to gRPC server
-	host := os.Getenv("GRPC_SERVER_HOST")
-	port := os.Getenv("GRPC_SERVER_PORT")
-	serverAddress := fmt.Sprintf("%s:%s", host, port)
+	// var host string
+	// if os.Getenv("ENV") == "production" {
+	// 	host = config.GRPC_SERVER_HOST
+	// } else {
+	// 	host = "localhost"
+	// }
+	// port := config.GRPC_SERVER_PORT
+	// serverAddress := fmt.Sprintf("%s:%s", host, port)
+	serverAddress := fmt.Sprintf("%s", config.GRPC_SERVER_HOST)
+	log.Printf("Server address: %s", serverAddress)
 	conn, err := connectWithRetry(serverAddress)
 	if err != nil {
 		log.Printf("Failed to connect: %v", err)
