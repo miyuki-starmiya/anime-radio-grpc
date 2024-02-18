@@ -3,15 +3,11 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'gen'))
 
 from concurrent import futures
-from dotenv import dotenv_values
 import grpc
 import gen.anime_radio_pb2
 import gen.anime_radio_pb2_grpc
 from api.slack import SlackClient
-from config import SLACK_WEBHOOK_URL, GRPC_SERVER_HOST, GRPC_SERVER_PORT
-
-# Load environment variables from the .env file
-env_vars = dotenv_values(".env")
+from config import SLACK_WEBHOOK_URL, GRPC_SERVER_PORT
 
 
 class AnimeRadioService(gen.anime_radio_pb2_grpc.AnimeRadioServiceServicer):
