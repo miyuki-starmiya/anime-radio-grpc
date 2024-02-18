@@ -107,7 +107,12 @@ func main() {
 	log.Printf("youTubeInfos: %v", youTubeInfos)
 
 	// Create connection to gRPC server
-	host := config.GRPC_SERVER_HOST
+	var host string
+	if os.getenv("ENV") == "production" {
+		host = config.GRPC_SERVER_HOST
+	} else {
+		host = "localhost"
+	}
 	port := config.GRPC_SERVER_PORT
 	serverAddress := fmt.Sprintf("%s:%s", host, port)
 	conn, err := connectWithRetry(serverAddress)

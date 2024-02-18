@@ -48,9 +48,9 @@ def main():
     server = grpc.server(futures.ThreadPoolExecutor())
     gen.anime_radio_pb2_grpc.add_AnimeRadioServiceServicer_to_server(AnimeRadioService(), server)
 
-    host = GRPC_SERVER_HOST or "localhost"
+    # listen to all hosts
     port = GRPC_SERVER_PORT or 8080
-    address = f"{host}:{port}"
+    address = f"[::]:{port}"
     server.add_insecure_port(address)
     print(f"listen to {address}")
     server.start()
