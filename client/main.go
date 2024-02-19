@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -107,15 +108,14 @@ func main() {
 	log.Printf("youTubeInfos: %v", youTubeInfos)
 
 	// Create connection to gRPC server
-	// var host string
-	// if os.Getenv("ENV") == "production" {
-	// 	host = config.GRPC_SERVER_HOST
-	// } else {
-	// 	host = "localhost"
-	// }
-	// port := config.GRPC_SERVER_PORT
-	// serverAddress := fmt.Sprintf("%s:%s", host, port)
-	serverAddress := fmt.Sprintf("%s", config.GRPC_SERVER_HOST)
+	var host string
+	if os.Getenv("ENV") == "production" {
+		host = config.GRPC_SERVER_HOST
+	} else {
+		host = "localhost"
+	}
+	port := config.GRPC_SERVER_PORT
+	serverAddress := fmt.Sprintf("%s:%s", host, port)
 	log.Printf("Server address: %s", serverAddress)
 	conn, err := connectWithRetry(serverAddress)
 	if err != nil {
